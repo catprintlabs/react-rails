@@ -15,7 +15,15 @@ module React
       end
 
       def render(component_name, props, prerender_options)
-        # pass prerender: :static to use renderToStaticMarkup
+        if prerender_options.is_a? Hash
+          if ExecJS.runtime.name == "(V8)" and prerender_options[:context]
+            raise PrerenderError.new(component_name, props, "you must use 'therubyracer' with the prerender[:context] option") unless ExecJS.runtime.name == "(V8)"
+          else
+            prerender_options[:context].each { |key, value| @context.instance_variable_get("@v8_context")[key] = value }
+            prerender_options = prerender_options[:static] ? :static : true
+          end
+        end
+        #pass prerender: :static to use renderToStaticMarkup
         react_render_method = if prerender_options == :static
             "renderToStaticMarkup"
           else
@@ -33,7 +41,7 @@ module React
             return result;
           })()
         JS
-
+        
         @context.eval(js_code).html_safe
       rescue ExecJS::ProgramError => err
         raise PrerenderError.new(component_name, props, err)
@@ -60,6 +68,7 @@ module React
       CONSOLE_REPLAY = <<-JS
       (function (history) {
         if (history && history.length > 0) {
+          console.history = []
           result += '\\n<scr'+'ipt>';
           history.forEach(function (msg) {
             result += '\\nconsole.' + msg.level + '.apply(console, ' + JSON.stringify(msg.arguments) + ');';
