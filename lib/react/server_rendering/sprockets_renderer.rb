@@ -16,10 +16,10 @@ module React
 
       def render(component_name, props, prerender_options)
         if prerender_options.is_a? Hash
-          if ExecJS.runtime.name == "(V8)" and prerender_options[:context]
+          if ExecJS.runtime.name == "(V8)" and prerender_options[:context_initializer]
             raise PrerenderError.new(component_name, props, "you must use 'therubyracer' with the prerender[:context] option") unless ExecJS.runtime.name == "(V8)"
           else
-            prerender_options[:context].each { |key, value| @context.instance_variable_get("@v8_context")[key] = value }
+            prerender_options[:context_initializer].call @context.instance_variable_get("@v8_context")
             prerender_options = prerender_options[:static] ? :static : true
           end
         end
